@@ -1,0 +1,458 @@
+---
+title: "Probabilidade e Estatística com R"
+author: "Claudio Rodrigues Nunes"
+e-mail1: "claudio_nunes@id.uff.br"
+e-mail2: "webmaster_claudio@yahoo.com"
+date: "2025-05-09"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+# 1) configurações do knitr
+knitr::opts_chunk$set(echo=TRUE, message=FALSE, warning=FALSE)
+
+# 2) bibliotecas
+library(tidyverse)
+library(janitor)
+library(lubridate)
+
+# 3) leitura e limpeza dos dados
+stations    <- read_csv("stations.csv", show_col_types = FALSE)    %>% clean_names()
+station_day <- read_csv("station_day.csv", show_col_types = FALSE) %>% clean_names()
+city_day    <- read_csv("city_day.csv", show_col_types = FALSE)    %>% clean_names()
+
+# 4) join estação → city+state
+aqi_stations <- station_day %>%
+  left_join(stations, by = "station_id")
+
+# 5) pré-cálculos
+media_aqi <- aqi_stations %>%
+  group_by(state, city) %>%
+  summarise(media_aqi = mean(aqi, na.rm=TRUE), .groups="drop")
+
+aqi <- aqi_stations %>%
+  mutate(
+    date = ymd(date),
+    year = year(date)
+  )
+```
+
+# Introdução
+
+Este documento é o trabalhado final do estudo do [Air Quality Data in India (Kaggle)](https://www.kaggle.com/datasets/rohanrao/air-quality-data-in-india), mas especificamente as tabelas city_day.csv, station_day.csv e stations.csv.
+
+Peguntas que este trabalho pretende responder:
+
+❓ Pergunta 1: Quais cidades apresentam a maior média de AQI no período completo?
+
+❓ Pergunta 2: Das cidades cuja média inicial de AQI estava acima da média geral, quais conseguiram reduzir para ficar abaixo da média nos dois últimos anos?
+
+❓ Pergunta 3: O comportamento das medições de PM10 e PM2.5 é semelhante em todas as cidades?
+
+# Metodologia & Preparação do ambiente de desenvolvimento
+
+Subi as seguintes bibliotecas:
+
+📝 stations   <- read_csv("stations.csv")   %>% clean_names()  
+📝 station_day<- read_csv("station_day.csv")%>% clean_names()  
+
+Importamos stations.csv (contendo station_id, city, state) e station_day.csv (contendo medições diárias de AQI e poluentes por estação). Em seguida fizemos um left join para anexar city e state a cada registro diário de AQI.  
+
+| Arquivo           | Descrição                                                    | Principais Variáveis               | Período Coberto            |
+|-------------------|--------------------------------------------------------------|------------------------------------|----------------------------|
+| `stations.csv`    | Metadados das estações de coleta                             | `station_id`, `city`, `state`      | —                          |
+| `station_day.csv` | Medições diárias de AQI e poluentes por estação              | `station_id`, `date`, `aqi`, `pm2_5`, `pm10`, `no2`, … | 2015-01-01 a 2020-12-31 |
+| `city_day.csv`    | Agregados diários de AQI por cidade                          | `city`, `date`, `aqi`, `pm2_5`, `pm10`, …                | 2015-01-01 a 2020-12-31 |
+
+# Resultados: Exploração de Dados
+
+### 1) Gráfico de Dispersão (duas variáveis contínuas)
+
+```{r scatter-pm, echo=TRUE}
+library(ggplot2)
+# duas variáveis contínuas: pm2_5 e pm10
+aqi_stations %>%
+  ggplot(aes(x = pm2_5, y = pm10)) +
+  geom_point(alpha = 0.3) +
+  labs(
+    title = "Scatter PM2.5 vs PM10 (todos os registros)",
+    x     = "PM2.5 (µg/m³)",
+    y     = "PM10 (µg/m³)"
+  )
+```
+
+### 2) Gráfico de Barras + Facetas (três variáveis categóricas)
+
+```{r bar-facet-top6, echo=TRUE}
+library(dplyr); library(lubridate); library(ggplot2)
+
+# calcula AQI médio por state e season
+aqi_sazonal <- aqi_stations %>%
+  mutate(
+    date   = ymd(date),
+    month  = month(date),
+    season = case_when(
+      month %in% 3:5  ~ "Primavera",
+      month %in% 6:8  ~ "Verão",
+      month %in% 9:11 ~ "Outono",
+      TRUE            ~ "Inverno"
+    )
+  ) %>%
+  group_by(state, season) %>%
+  summarise(aqi_medio = mean(aqi, na.rm = TRUE), .groups="drop")
+
+# escolhe os 6 estados mais poluentes no geral
+top6_states <- media_aqi %>%
+  group_by(state) %>%
+  summarise(aqi_estado = mean(media_aqi), .groups="drop") %>%
+  slice_max(order_by = aqi_estado, n = 6) %>%
+  pull(state)
+
+# plota só esses
+aqi_sazonal %>%
+  filter(state %in% top6_states) %>%
+  ggplot(aes(x = season, y = aqi_medio, fill = season)) +
+  geom_col(show.legend = FALSE) +
+  facet_wrap(~ state, scales = "free_y") +
+  labs(
+    title = "AQI médio sazonal nos 6 estados mais poluentes",
+    x     = "Estação",
+    y     = "AQI Médio"
+  ) +
+  theme(axis.text.x = element_text(angle = 45, hjust = 1))
+```
+
+### 3) Gráfico de Linha (evolução ao longo do tempo)
+
+Como temos a variável `date` (contínua no tempo), podemos plotar o **AQI médio mensal** para todo o país – ou restringir a algumas cidades/estados.
+
+#### Série Temporal do AQI Médio Mensal (Requisito 3)
+
+```{r line-aqi-time, echo=TRUE}
+library(dplyr); library(lubridate); library(ggplot2)
+
+aqi_stations %>%
+  mutate(date = ymd(date)) %>%
+  group_by(month = floor_date(date, "month")) %>%
+  summarise(aqi_medio = mean(aqi, na.rm = TRUE), .groups="drop") %>%
+  ggplot(aes(x = month, y = aqi_medio)) +
+  geom_line() +
+  labs(
+    title = "AQI médio mensal na Índia (todas as estações)",
+    x     = "Mês",
+    y     = "AQI Médio"
+  )
+```
+
+## 📝❓ Pergunta 1: Cidades com maior média de AQI no período completo
+
+### a) Amostra dos dados brutos
+
+```{r p1-brutos, echo=TRUE}
+head(aqi_stations)
+```
+
+### b) Linhas com problemas (AQI faltante)
+
+```{r p1-problemas, echo=TRUE}
+aqi_stations %>% 
+  filter(is.na(aqi)) %>% 
+  head(10)
+```
+
+### c) Tabela tratada (remoção de NAs)
+
+```{r p1-tratado, echo=TRUE}
+aqi_stations_clean <- aqi_stations %>% 
+  filter(!is.na(aqi))
+head(aqi_stations_clean)
+```
+
+### d) Cálculo da média de AQI por estado–cidade (dados tratados)
+
+```{r p1-media-aqi, echo=TRUE}
+media_aqi_clean <- aqi_stations_clean %>%
+  group_by(state, city) %>%
+  summarise(media_aqi = mean(aqi, na.rm = TRUE), .groups = "drop") %>%
+  arrange(desc(media_aqi))
+head(media_aqi_clean, 10)
+```
+
+### e) Gráfico das Top 10 Cidades/Estados
+
+```{r p1-grafico, echo=TRUE}
+library(ggplot2)
+media_aqi_clean %>%
+  slice_head(n = 10) %>%
+  mutate(label = paste(state, city, sep = " – ")) %>%
+  ggplot(aes(x = reorder(label, media_aqi), y = media_aqi)) +
+    geom_col(fill = "steelblue") +
+    coord_flip() +
+    labs(
+      title = "Top 10 Cidades/Estados por AQI Médio",
+      x = NULL,
+      y = "Média AQI"
+    )
+```
+
+### f) Tabela final da Pergunta 1
+
+```{r p1-final, echo=TRUE}
+media_aqi_clean %>%
+  slice_head(n = 10) %>%
+  arrange(desc(media_aqi)) %>%
+  mutate(
+    Rank        = row_number(),
+    `Média AQI` = round(media_aqi, 1)
+  ) %>%
+  select(Rank, Estado = state, Cidade = city, `Média AQI`) %>%
+  knitr::kable(
+    col.names = c("Rank","Estado","Cidade","Média AQI"),
+    align     = c("c","l","l","r")
+  )
+```
+
+## 📝❓ Pergunta 2: Cidades/estados que saíram de acima da média geral para abaixo nos últimos 2 anos
+
+### a) Amostra dos dados brutos
+
+```{r p2-brutos, echo=TRUE}
+head(aqi %>% select(date, state, city, aqi, year))
+```
+
+### b) Linhas “problemáticas” (sem dados de AQI ou sem comparativo)
+
+```{r p2-brutos-problema, echo=TRUE}
+aqi %>%
+  filter(is.na(aqi)) %>%
+  head(10)
+```
+
+### c) Tabela tratada
+
+```{r p2-brutos-tratada, echo=TRUE}
+aqi_clean2 <- aqi %>%
+  filter(!is.na(aqi))
+head(aqi_clean2)
+```
+
+### d) Cálculo das médias inicial e recente
+
+#### média geral
+
+```{r p2-brutos-media-geral, echo=TRUE}
+media_geral <- mean(aqi_clean2$aqi, na.rm=TRUE)
+```
+
+#### ano inicial e anos finais
+
+```{r p2-brutos-tratada-inicial-final, echo=TRUE}
+ano_ini  <- min(aqi_clean2$year)
+ano_max  <- max(aqi_clean2$year)
+med_iniciais <- aqi_clean2 %>%
+  filter(year == ano_ini) %>%
+  group_by(state, city) %>%
+  summarise(media_inicial = mean(aqi, na.rm=TRUE), .groups="drop")
+med_recentes <- aqi_clean2 %>%
+  filter(year >= ano_max-1) %>%
+  group_by(state, city) %>%
+  summarise(media_recente = mean(aqi, na.rm=TRUE), .groups="drop")
+```
+
+### e) Gráfico comparativo (inicial × recente)
+
+```{r p2-brutos-gratico-compara, echo=TRUE}
+library(tidyr)
+library(ggplot2)
+
+#### 1. Junta medias iniciais e recentes pelas chaves
+
+comparativo <- med_iniciais %>%
+  inner_join(med_recentes, by = c("state","city")) %>%
+
+#### 2. Filtra quem melhorou
+
+  filter(media_inicial > media_geral, media_recente < media_geral) %>%
+
+#### 3. Prepara para pivot_longer
+
+  rename(Inicial = media_inicial, Recente = media_recente) %>%
+  select(state, city, Inicial, Recente)
+
+#### 4. Empilha para fazer dodge bars
+
+comparativo_long <- comparativo %>%
+  pivot_longer(
+    cols      = c(Inicial, Recente),
+    names_to  = "Período",
+    values_to = "AQI"
+  ) %>%
+  mutate(label = paste(state, city, sep=" – "))
+
+#### 5. Plota
+
+ggplot(comparativo_long, aes(x = reorder(label, AQI), y = AQI, fill = Período)) +
+  geom_col(position="dodge") +
+  coord_flip() +
+  labs(
+    title = "Comparativo AQI Inicial vs Recente (quem melhorou)",
+    x     = NULL,
+    y     = "AQI",
+    fill  = NULL
+  )
+
+### f) Tabela final de resposta
+
+med_iniciais %>%
+  inner_join(med_recentes, by=c("state","city")) %>%
+  filter(media_inicial > media_geral, media_recente < media_geral) %>%
+  arrange(desc(media_inicial)) %>%
+  slice_head(n = 10) %>%
+  mutate(
+    Rank           = row_number(),
+    `Média Inicial` = round(media_inicial, 1),
+    `Média Recente` = round(media_recente,  1)
+  ) %>%
+  select(Rank, Estado=state, Cidade=city, `Média Inicial`, `Média Recente`) %>%
+  knitr::kable(align=c("c","l","l","r","r"))
+```
+
+## 📝❓ Pergunta 3: Comportamento de PM10 vs PM2.5 em cada cidade
+
+### a) Amostra dos dados brutos
+
+```{r p3-brutos, echo=TRUE}
+head(aqi_stations %>% select(pm2_5, pm10, state, city))
+```
+
+### b) Linhas “problemáticas” (menos de 2 pares completos)
+
+```{r p3-brutos-problemas, echo=TRUE}
+aqi_stations %>%
+  group_by(state, city) %>%
+  summarise(n_obs = sum(!is.na(pm2_5)&!is.na(pm10))) %>%
+  filter(n_obs < 2)
+```
+
+### c) Tabela tratada – cálculo de correlação
+
+```{r p3-brutos-problemas-tratado, echo=TRUE}
+correlacoes2 <- aqi_stations %>%
+  group_by(state, city) %>%
+  summarise(
+    n_obs = sum(!is.na(pm2_5)&!is.na(pm10)),
+    cor_pm = ifelse(n_obs>1, cor(pm2_5, pm10, use="complete.obs"), NA_real_),
+    .groups="drop"
+  )
+head(correlacoes2)
+```
+
+### d) Gráfico scatter (top 6 cidades)
+
+```{r p3-brutos-problemas-tratado-grafico, echo=TRUE}
+top6 <- correlacoes2 %>%
+  filter(!is.na(cor_pm)) %>%
+  slice_max(cor_pm, n=6, with_ties=FALSE) %>%
+  select(state, city)
+aqi_stations %>%
+  semi_join(top6, by=c("state","city")) %>%
+  ggplot(aes(x=pm2_5, y=pm10)) +
+    geom_point(alpha=0.3) +
+    facet_wrap(~ city, scales="free") +
+    labs(
+      title="Scatter PM2.5 vs PM10 nas 6 cidades de maior correlação",
+      x="PM2.5", y="PM10"
+    )
+```
+
+### e) Tabela final de resposta
+
+```{r p3-brutos-problemas-tratado-final, echo=TRUE}
+correlacoes2 %>%
+  filter(!is.na(cor_pm)) %>%
+  slice_max(cor_pm, n=10, with_ties=FALSE) %>%
+  mutate(
+    Rank       = row_number(),
+    Correlação = round(cor_pm, 2)
+  ) %>%
+  select(Rank, Estado=state, Cidade=city, Correlação) %>%
+  knitr::kable(align=c("c","l","l","r"))
+```
+
+# Conclusão
+
+Neste relatório de análise da qualidade do ar na Índia, respondemos três perguntas-chave:
+
+1. **Cidades e estados mais poluentes**  
+   Top 10 Cidades/Estados Mais Poluentes (Pergunta 1)
+
+```{r tabela-pergunta1-minima, echo=FALSE, results='asis'}
+media_aqi %>%
+  ungroup() %>%                     # <— tira todos os grupos
+  arrange(desc(media_aqi)) %>%      # ordena do maior para o menor
+  slice_head(n = 10) %>%            # pega exatamente 10 linhas
+  mutate(
+    Rank        = row_number(),     # rank 1,2,...10
+    `Média AQI` = round(media_aqi, 1)
+  ) %>%
+  select(
+    Rank,
+    Estado      = state,
+    Cidade      = city,
+    `Média AQI`
+  ) %>%
+  knitr::kable(
+    col.names = c("Rank","Estado","Cidade","Média AQI"),
+    align     = c("c","l","l","r")
+  )
+```
+
+2. **Melhoria nos últimos dois anos**  
+   Das cidades/estados que começaram acima da média geral de AQI, as que conseguiram reduzir suas médias anuais para abaixo da média geral nos dois últimos anos foram:
+   
+```{r tabela-pergunta2, echo=FALSE, results='asis'}
+med_iniciais %>%
+  inner_join(med_recentes, by = c("state","city")) %>%
+  filter(media_inicial > media_geral, media_recente < media_geral) %>%
+  arrange(desc(media_inicial)) %>%
+  slice_head(n = 10) %>%
+  mutate(
+    `Média Inicial` = round(media_inicial, 1),
+    `Média Recente` = round(media_recente, 1)
+  ) %>%
+  select(
+    Estado = state,
+    Cidade = city,
+    `Média Inicial`,
+    `Média Recente`
+  ) %>%
+  knitr::kable(
+    caption = "Cidades/estados que saíram de acima da média geral para abaixo nos últimos 2 anos",
+    align   = c("l","l","r","r")
+  )
+```
+
+3. **Similaridade PM2.5 vs PM10**  
+   Calculamos o coeficiente de correlação entre PM2.5 e PM10 por cidade e verificamos que a maioria apresenta correlações muito altas (próximas de 1), indicando comportamento fortemente semelhante. Nas 6 cidades de maior correlação, o scatter plot mostra um alinhamento quase linear, confirmando essa relação.
+
+```{r tabela-pergunta3, echo=FALSE, results='asis'}
+correlacoes2 %>%
+  filter(!is.na(cor_pm)) %>%
+  slice_max(cor_pm, n = 10, with_ties = FALSE) %>%
+  arrange(desc(cor_pm)) %>%
+  mutate(Correlação = round(cor_pm, 2)) %>%
+  select(
+    Estado      = state,
+    Cidade      = city,
+    Correlação
+  ) %>%
+  knitr::kable(
+    caption = "Top 10 cidades com maior correlação entre PM2.5 e PM10",
+    align   = c("l","l","r")
+  )
+```
+
+**Limitações e próximos passos:**  
+- Em algumas cidades faltaram dados completos de PM2.5/PM10, o que excluiu esses casos da análise de correlação.  
+- Poderíamos estender o estudo agregando por região ou avaliando sazonalidade mais fina (mensal/diária).  
+- Uma análise de séries temporais (ARIMA, decomposição sazonal) ajudaria a entender tendências e picos de poluição.
