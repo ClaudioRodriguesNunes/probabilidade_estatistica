@@ -27,5 +27,5 @@ Além disso, demonstramos como o dataset atende a requisitos de EDA:
 │   ├── station_day.csv
 │   └── city_day.csv
 ├── scripts/
-│   |── trabalho-prob-estatistica.
-|   └── 
+│   |── trabalho-probabilidade-e-estatistica-com-R---outra-versao.Rmd
+|   └── trabalho-probabilidade-e-estatistica-com-R---outra-versao.html
