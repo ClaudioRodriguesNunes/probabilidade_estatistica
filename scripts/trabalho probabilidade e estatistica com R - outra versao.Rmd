@@ -17,9 +17,9 @@ library(janitor)
 library(lubridate)
 
 # 3) leitura e limpeza dos dados
-stations    <- read_csv("stations.csv", show_col_types = FALSE)    %>% clean_names()
-station_day <- read_csv("station_day.csv", show_col_types = FALSE) %>% clean_names()
-city_day    <- read_csv("city_day.csv", show_col_types = FALSE)    %>% clean_names()
+stations    <- read_csv("C:/Users/webma/OneDrive/Documentos/GitHub/probabilidade_estatistica/data/stations.csv", show_col_types = FALSE)    %>% clean_names()
+station_day <- read_csv("C:/Users/webma/OneDrive/Documentos/GitHub/probabilidade_estatistica/data/station_day.csv", show_col_types = FALSE) %>% clean_names()
+city_day    <- read_csv("C:/Users/webma/OneDrive/Documentos/GitHub/probabilidade_estatistica/data/city_day.csv", show_col_types = FALSE)    %>% clean_names()
 
 # 4) join estação → city+state
 aqi_stations <- station_day %>%
