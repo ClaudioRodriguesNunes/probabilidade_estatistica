@@ -21,23 +21,23 @@ Além disso, demonstramos como o dataset atende a requisitos de EDA:
 
 ### 1. Leitura e limpeza dos dados
 - [x] Ler dados com função `read_...` do **tidyverse** para uma tibble
-- [ ] Usar `glimpse()` para inspecionar a tibble
+- [x] Usar `glimpse()` para inspecionar a tibble
 - [ ] (Se necessário) Refazer leitura especificando tipos de colunas em `read_...`
 - [x] (Se necessário) Aplicar `janitor::clean_names()`
-- [ ] Usar `summarytools::dfSummary()` para sumário da tibble
+- [x] Usar `summarytools::dfSummary()` para sumário da tibble
 - [x] Verificar **NAs** e valores obviamente errados
 - [x] (Se necessário) Corrigir valores óbvios na tibble
 - [x] (Se necessário) Transformar a tibble para facilitar manipulações:
   - [x] `pivot_wider()` ou `pivot_longer()`
   - [x] Funções do **lubridate** para converter datas/horários
-  - [ ] Funções do **stringr** + `mutate()` para extrair partes de strings
-  - [ ] `mutate()` para converter unidades (e.g. µg/m³ para outra escala)
+  - [x] Funções do **stringr** + `mutate()` para extrair partes de strings
+  - [x] `mutate()` para converter unidades (e.g. µg/m³ para outra escala)
 
 ### 2. Análise exploratória (EDA)
-- [ ] Verificar contagem de valores diferentes em colunas de interesse
-- [ ] Verificar contagem de **NAs** em colunas de interesse
+- [x] Verificar contagem de valores diferentes em colunas de interesse
+- [x] Verificar contagem de **NAs** em colunas de interesse
 - [x] Agregar dados com `group_by()` + `summarise()` para estatísticas descritivas
-- [ ] Formular perguntas (além das 3 principais) e respondê-las via EDA
+- [x] Formular perguntas (além das 3 principais) e respondê-las via EDA
 
 ### 3. Visualização (ggplot2)
 #### Requisitos gerais
