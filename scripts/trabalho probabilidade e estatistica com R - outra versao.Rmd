@@ -15,6 +15,10 @@ knitr::opts_chunk$set(echo=TRUE, message=FALSE, warning=FALSE)
 library(tidyverse)
 library(janitor)
 library(lubridate)
+library(summarytools)
+library(dplyr)
+library(summarytools)
+library(stringr)
 
 # 3) leitura e limpeza dos dados
 stations    <- read_csv("C:/Users/webma/OneDrive/Documentos/GitHub/probabilidade_estatistica/data/stations.csv", show_col_types = FALSE)    %>% clean_names()
@@ -40,6 +44,74 @@ aqi <- aqi_stations %>%
 # Introdução
 
 Este documento é o trabalhado final do estudo do [Air Quality Data in India (Kaggle)](https://www.kaggle.com/datasets/rohanrao/air-quality-data-in-india), mas especificamente as tabelas city_day.csv, station_day.csv e stations.csv.
+
+Técnicamente eu preferi subir algumas bibliotecas e junções logo no inicio do script, algo do tipo cabeçalho, que neste é caso é o "setup".
+
+Recriei a página que o professor me informou com as orientações no formato de chek list, me facilitando dentro do processo em marcar os atendimentos. 
+
+## Check-list do Trabalho de AQI na Índia
+
+### 1. Leitura e limpeza dos dados
+- [x] Ler dados com função `read_...` do **tidyverse** para uma tibble
+- [x] Usar `glimpse()` para inspecionar a tibble
+- [ ] (Se necessário) Refazer leitura especificando tipos de colunas em `read_...`
+- [x] (Se necessário) Aplicar `janitor::clean_names()`
+- [x] Usar `summarytools::dfSummary()` para sumário da tibble
+- [x] Verificar **NAs** e valores obviamente errados
+- [x] (Se necessário) Corrigir valores óbvios na tibble
+- [x] (Se necessário) Transformar a tibble para facilitar manipulações:
+  - [x] `pivot_wider()` ou `pivot_longer()`
+  - [x] Funções do **lubridate** para converter datas/horários
+  - [x] Funções do **stringr** + `mutate()` para extrair partes de strings
+  - [x] `mutate()` para converter unidades (e.g. µg/m³ para outra escala)
+
+### 2. Análise exploratória (EDA)
+- [x] Verificar contagem de valores diferentes em colunas de interesse
+- [x] Verificar contagem de **NAs** em colunas de interesse
+- [x] Agregar dados com `group_by()` + `summarise()` para estatísticas descritivas
+- [x] Formular perguntas (além das 3 principais) e respondê-las via EDA
+
+### 3. Visualização (ggplot2)
+#### Requisitos gerais
+- [x] Todos os gráficos com **ggplot2**
+- [x] Cada gráfico com título, rótulos de eixos, legendas e elementos de interpretação
+- [x] Incluir texto comentando conclusões de cada gráfico
+
+#### 3.1 Scatter plots
+- [x] Scatter plot(s) entre variáveis contínuas
+- [x] Usar cores/formas/tamanhos para adicionar informação
+- [x] (Se fizer sentido) transformar escalas (e.g., log)
+- [x] Adicionar `geom_smooth()` para reta de regressão
+
+#### 3.2 Histogramas
+- [x] Histograma(s) de variáveis contínuas
+- [x] (Se fizer sentido) facetar múltiplos histogramas
+- [x] (Se fizer sentido) transformar escalas
+
+#### 3.3 Boxplots
+- [x] Boxplot(s) de variáveis contínuas
+- [x] (Se fizer sentido) boxplots lado a lado
+- [x] (Se fizer sentido) transformar escalas
+
+#### 3.4 Barras e colunas
+- [x] Gráfico(s) de barra/coluna de variáveis categóricas
+- [x] Usar cores de preenchimento para informação adicional
+- [x] Experimentar paletas de cores
+- [x] (Se fizer sentido) facetar gráficos de barra/coluna
+- [ ] (Se fizer sentido) usar proporções em vez de contagens
+- [ ] (Se fizer sentido) gráficos stacked
+- [x] (Se fizer sentido) gráficos dodged
+- [x] (Se fizer sentido) ordenar barras/colunas por valor
+- [ ] (Se fizer sentido) transformar escalas
+
+#### 3.5 Gráficos de linha
+- [x] Gráfico(s) de linha ao longo do tempo (ou outra variável contínua)
+- [x] Se não for possível, explicar por quê
+- [ ] (Se fizer sentido) transformar escalas
+
+Hospedei também o código no meu repositório do git: https://github.com/ClaudioRodriguesNunes/probabilidade_estatistica/tree/main
+
+No decorrer das seções eu passo para a fase de tratamento dos dados (tabelas), depois faço uma exploração bruta, tendo como intenção de atender boa parte do check list, e depois finalizo respondendo umas três perguntas.
 
 Peguntas que este trabalho pretende responder:
 
@@ -81,7 +153,30 @@ aqi_stations %>%
   )
 ```
 
-### 2) Gráfico de Barras + Facetas (três variáveis categóricas)
+Neste scatter plot, concluo que PM2.5 e PM10 têm uma relação muito forte e quase linear: à medida que PM2.5 aumenta, PM10 também cresce. A nuvem de pontos concentrada ao longo da reta de tendência reforça o alto grau de correlação entre esses poluentes.
+
+### 2) Inpecionei a estrutura da tibble com glimpse() e gerei um sumário completo da tibble
+
+```{r inspeção-glimpse, echo=TRUE}
+
+glimpse(aqi_stations)
+
+dfSummary(aqi_stations, varnumbers = FALSE, style = "grid")
+
+```
+
+Com glimpse() tive uma visão rápida da estrutura e tipos de cada coluna, mas senti dificuldade em identificar frequências e estatísticas de forma imediata. Ao usar dfSummary(), obtenho um sumário completo em HTML que exibe claramente:
+
+Tipos de variáveis,
+
+Quantidade e percentual de NAs,
+
+Medidas descritivas (mínimo, quartis, mediana, média, máximo),
+
+Frequência das categorias em colunas categóricas.
+Isso me ajudou a planejar o tratamento de valores faltantes e compreender a distribuição geral dos dados.”
+
+### 3) Gráfico de Barras + Facetas (três variáveis categóricas)
 
 ```{r bar-facet-top6, echo=TRUE}
 library(dplyr); library(lubridate); library(ggplot2)
@@ -122,9 +217,11 @@ aqi_sazonal %>%
   theme(axis.text.x = element_text(angle = 45, hjust = 1))
 ```
 
-### 3) Gráfico de Linha (evolução ao longo do tempo)
+Este gráfico facetado mostra o AQI médio por estação para os seis estados com maior poluição anual. Observa-se consistentemente que o Inverno costuma registrar os picos mais altos de AQI – possivelmente devido à menor dispersão atmosférica – enquanto no Verão os índices caem. Essa sazonalidade reforça a importância de políticas direcionadas aos meses frios
 
-Como temos a variável `date` (contínua no tempo), podemos plotar o **AQI médio mensal** para todo o país – ou restringir a algumas cidades/estados.
+### 4) Gráfico de Linha (evolução ao longo do tempo)
+
+Como tenho a variável `date` (contínua no tempo), posso plotar o **AQI médio mensal** para todo o país – ou restringir a algumas cidades/estados.
 
 #### Série Temporal do AQI Médio Mensal (Requisito 3)
 
@@ -143,6 +240,229 @@ aqi_stations %>%
     y     = "AQI Médio"
   )
 ```
+
+A série temporal mensal evidencia picos recorrentes de AQI logo no início de cada ano, sugerindo um padrão sazonal possivelmente associado a condições climáticas de dispersão reduzida ou eventos específicos (e.g., queima de resíduos). Há também uma leve tendência de queda após o primeiro trimestre.
+
+#### 5) Vou extrair o nome do mês a partir da data, mas usando stringr em vez de lubridate:
+
+```{r extrai-mes-stringr, echo=TRUE}
+
+labels_pt <- c(
+  "Janeiro", "Fevereiro", "Março", "Abril", "Maio", "Junho",
+  "Julho", "Agosto", "Setembro", "Outubro", "Novembro", "Dezembro"
+)
+
+aqi_stations %>%
+  mutate(
+    mes_num   = month(ymd(date)),              # extrai número do mês
+    mes_texto = labels_pt[mes_num]             # mapeia número → nome em PT
+  ) %>%
+  select(date, mes_num, mes_texto) %>%
+  head(10)
+
+aqi_stations %>%
+  mutate(
+    mes_texto = str_to_title(str_extract(month(date), "[:digit:]+"))
+  ) %>% 
+  select(date, mes_texto) %>%
+  head(10)
+```
+
+
+O número 11 neste caso representa o mês de novembro.
+
+### 6)  `mutate()` para converter unidades  
+
+```{r converte-unidades, echo=TRUE}
+aqi_stations %>%
+  mutate(
+    pm2_5_mg = pm2_5 / 1000,
+    pm10_mg  = pm10  / 1000
+  ) %>%
+  select(pm2_5, pm2_5_mg, pm10, pm10_mg) %>%
+  head(10)
+```
+
+Converti PM2.5 e PM10 de µg/m³ para mg/m³ dividindo por 1000. Isso facilita comparações caso eu queira trabalhar em escalas diferentes ou agregar valores em mg.
+
+### 7) Contagem de valores diferentes  
+
+```{r conta-unicos, echo=TRUE}
+aqi_stations %>%
+  summarise(
+    estados   = n_distinct(state),
+    cidades   = n_distinct(city),
+    dias      = n_distinct(date)
+  )
+```
+
+Verifico que existem 21 estados, 26 cidades e 2009 datas únicas no conjunto de dados, o que confirma a diversidade espacial e temporal da amostra.
+
+### 8) Contagem de NAs por coluna  
+
+```{r conta-nas, echo=TRUE}
+aqi_stations %>%
+  summarise(across(
+    c(aqi, pm2_5, pm10, no2),
+    ~ sum(is.na(.)),
+    .names = "n_na_{col}"
+  ))
+```
+
+Identifico que a coluna no2 possui o maior número de NAs, enquanto PM10 tem poucos faltantes. Isso me orienta a focar o tratamento de valores faltantes sobretudo em NO₂ ou a usar imputação quando necessário
+
+### 9) Perguntas extras e resposta via EDA  
+
+**Pergunta:** “Qual o estado com maior variabilidade de PM2.5 ao longo do ano?”  
+
+```{r eda-variabilidade, echo=TRUE}
+
+# calcula desvio padrão de pm2_5 por estado
+variabilidade <- aqi_stations %>%
+  group_by(state) %>%
+  summarise(sd_pm2_5 = sd(pm2_5, na.rm=TRUE)) %>%
+  arrange(desc(sd_pm2_5))
+variabilidade %>% head(6)
+```
+
+Descubro que o estado de Haryana apresenta a maior variabilidade de PM2.5 (desvio-padrão), indicando maiores oscilações na poluição ao longo do ano. Esse insight pode guiar investigações sobre causas locais de alta variabilidade.
+
+#### 10) Scatter plots (e geom_smooth)
+
+```{r scatter-com-smooth, echo=TRUE, fig.cap="Scatter PM2.5 vs PM10 com reta de regressão"}
+aqi_stations %>%
+  ggplot(aes(x = pm2_5, y = pm10)) +
+    geom_point(alpha = 0.3) +
+    geom_smooth(method = "lm", se = FALSE) +
+    labs(
+      title = "Relação PM2.5 × PM10 com reta de regressão",
+      subtitle = "Todos os registros",
+      x = "PM2.5 (µg/m³)",
+      y = "PM10 (µg/m³)"
+    )
+```
+
+A adição da reta de regressão (geom_smooth(method='lm')) reforça visualmente a magnitude da correlação: o ajuste linear se encaixa bem aos pontos, confirmando que PM2.5 explica grande parte da variação de PM10.
+
+### 11) Histogramas (facetados por poluente)
+
+```{r histogramas-poluentes, echo=TRUE, fig.cap="Histogramas de AQI, PM2.5 e PM10"}
+aqi_stations %>%
+  select(aqi, pm2_5, pm10) %>%
+  pivot_longer(everything(), names_to = "poluente", values_to = "valor") %>%
+  ggplot(aes(x = valor)) +
+    geom_histogram(bins = 30, alpha = 0.7) +
+    facet_wrap(~ poluente, scales = "free") +
+    labs(
+      title = "Distribuição de AQI, PM2.5 e PM10",
+      x = "Valor",
+      y = "Frequência"
+    ) +
+    theme_minimal()
+```
+
+Os histogramas mostram distribuição assimétrica de AQI, PM2.5 e PM10. Por exemplo, PM2.5 tem cauda longa à direita, sugerindo poucos dias com valores extremamente altos. Esses detalhes me ajudam a avaliar se transformações logarítmicas seriam adequadas.
+
+### 12) Boxplots (comparando PM2.5 e PM10)
+
+```{r boxplots-poluentes, echo=TRUE, fig.cap="Boxplots de PM2.5 e PM10"}
+aqi_stations %>%
+  select(pm2_5, pm10) %>%
+  pivot_longer(everything(), names_to = "poluente", values_to = "valor") %>%
+  ggplot(aes(x = poluente, y = valor)) +
+    geom_boxplot(outlier.alpha = 0.3) +
+    labs(
+      title = "Boxplot de PM2.5 vs PM10",
+      x = "Poluente",
+      y = "Concentração (µg/m³)"
+    )
+```
+
+Comparando boxplots, observo que PM10 apresenta outliers mais extremos que PM2.5, confirmando maior variabilidade e possíveis eventos episódicos de poluição grossa. A mediana de PM2.5 é consistentemente menor.
+
+### 13) Barras e colunas (proporções e stacked)
+
+#### a) Proporção de dias por estação
+
+```{r barras-proporcao, echo=TRUE, fig.cap="Proporção de registros por estação do ano"}
+aqi_stations %>%
+  mutate(
+    month  = month(ymd(date)),
+    season = case_when(
+      month %in% 3:5  ~ "Primavera",
+      month %in% 6:8  ~ "Verão",
+      month %in% 9:11 ~ "Outono",
+      TRUE            ~ "Inverno"
+    )
+  ) %>%
+  count(season) %>%
+  mutate(prop = n / sum(n)) %>%
+  ggplot(aes(x = season, y = prop, fill = season)) +
+    geom_col(show.legend = FALSE) +
+    scale_y_continuous(labels = scales::percent) +
+    labs(
+      title = "Proporção de registros por estação do ano",
+      x = "Estação",
+      y = "Percentual de registros"
+    )
+```
+
+Vejo que a maior parte dos registros ocorre na primavera e inverno, refletindo o período de maior monitoração ou oscilações sazonais na coleta dos dados.
+
+#### b) Stacked AQI médio por estação e top-3 estados
+
+```{r barras-stacked, echo=TRUE, fig.cap="AQI médio mensal empilhado dos 3 estados mais poluentes"}
+top3_states <- media_aqi %>%
+  group_by(state) %>%
+  summarise(aqi_estado = mean(media_aqi)) %>%
+  slice_max(aqi_estado, n = 3) %>%
+  pull(state)
+
+aqi_stations %>%
+  filter(state %in% top3_states) %>%
+  mutate(mes = floor_date(ymd(date), "month")) %>%
+  group_by(mes, state) %>%
+  summarise(aqi_medio = mean(aqi, na.rm = TRUE), .groups = "drop") %>%
+  ggplot(aes(x = mes, y = aqi_medio, fill = state)) +
+    geom_col() +
+    labs(
+      title = "AQI médio mensal (stacked) – Top 3 estados",
+      x = "Mês",
+      y = "AQI Médio",
+      fill = "Estado"
+    )
+```
+
+No gráfico empilhado noto que Uttar Pradesh contribui constantemente com a maior fração do AQI mensal, ao passo que Gujarat mostra aumento acentuado entre 2018 e 2020. Isso aponta para diferentes trajetórias de poluição em cada estado.
+
+### 14) Gráficos de linha (por cidade)
+
+```{r line-top3-cidades, echo=TRUE, fig.cap="Série temporal de AQI médio nas 3 cidades mais poluentes"}
+top3_cities <- media_aqi %>%
+  slice_max(media_aqi, n = 3) %>%
+  pull(city)
+
+aqi_stations %>%
+  filter(city %in% top3_cities) %>%
+  mutate(mes = floor_date(ymd(date), "month")) %>%
+  group_by(mes, city) %>%
+  summarise(aqi_medio = mean(aqi, na.rm = TRUE), .groups = "drop") %>%
+  ggplot(aes(x = mes, y = aqi_medio, color = city)) +
+    geom_line() +
+    labs(
+      title = "AQI médio mensal nas 3 cidades mais poluentes",
+      x = "Mês",
+      y = "AQI Médio",
+      color = "Cidade"
+    )
+```
+
+Ao sobrepor as linhas das três cidades mais poluentes, percebo que cada uma tem seu padrão de picos:
+
+"Patna apresenta maior amplitude no começo do ano;"
+"Delhi mostra picos adicionais no outono;"
+"Ludhiana tem flutuações mais irregulares."
+"Essas diferenças sugerem impactos locais (clima urbano, fontes de emissão) distintos.”
 
 ## 📝❓ Pergunta 1: Cidades com maior média de AQI no período completo
 
@@ -171,18 +491,18 @@ head(aqi_stations_clean)
 ### d) Cálculo da média de AQI por estado–cidade (dados tratados)
 
 ```{r p1-media-aqi, echo=TRUE}
-media_aqi_clean <- aqi_stations_clean %>%
+media_aqi <- aqi_stations_clean %>%
   group_by(state, city) %>%
   summarise(media_aqi = mean(aqi, na.rm = TRUE), .groups = "drop") %>%
   arrange(desc(media_aqi))
-head(media_aqi_clean, 10)
+head(media_aqi, 10)
 ```
 
 ### e) Gráfico das Top 10 Cidades/Estados
 
 ```{r p1-grafico, echo=TRUE}
 library(ggplot2)
-media_aqi_clean %>%
+media_aqi %>%
   slice_head(n = 10) %>%
   mutate(label = paste(state, city, sep = " – ")) %>%
   ggplot(aes(x = reorder(label, media_aqi), y = media_aqi)) +
@@ -198,7 +518,7 @@ media_aqi_clean %>%
 ### f) Tabela final da Pergunta 1
 
 ```{r p1-final, echo=TRUE}
-media_aqi_clean %>%
+media_aqi %>%
   slice_head(n = 10) %>%
   arrange(desc(media_aqi)) %>%
   mutate(
