@@ -43,28 +43,28 @@ Além disso, demonstramos como o dataset atende a requisitos de EDA:
 #### Requisitos gerais
 - [x] Todos os gráficos com **ggplot2**
 - [x] Cada gráfico com título, rótulos de eixos, legendas e elementos de interpretação
-- [ ] Incluir texto comentando conclusões de cada gráfico
+- [x] Incluir texto comentando conclusões de cada gráfico
 
 #### 3.1 Scatter plots
 - [x] Scatter plot(s) entre variáveis contínuas
-- [ ] Usar cores/formas/tamanhos para adicionar informação
-- [ ] (Se fizer sentido) transformar escalas (e.g., log)
-- [ ] Adicionar `geom_smooth()` para reta de regressão
+- [x] Usar cores/formas/tamanhos para adicionar informação
+- [x] (Se fizer sentido) transformar escalas (e.g., log)
+- [x] Adicionar `geom_smooth()` para reta de regressão
 
 #### 3.2 Histogramas
-- [ ] Histograma(s) de variáveis contínuas
-- [ ] (Se fizer sentido) facetar múltiplos histogramas
-- [ ] (Se fizer sentido) transformar escalas
+- [x] Histograma(s) de variáveis contínuas
+- [x] (Se fizer sentido) facetar múltiplos histogramas
+- [x] (Se fizer sentido) transformar escalas
 
 #### 3.3 Boxplots
-- [ ] Boxplot(s) de variáveis contínuas
-- [ ] (Se fizer sentido) boxplots lado a lado
-- [ ] (Se fizer sentido) transformar escalas
+- [x] Boxplot(s) de variáveis contínuas
+- [x] (Se fizer sentido) boxplots lado a lado
+- [x] (Se fizer sentido) transformar escalas
 
 #### 3.4 Barras e colunas
 - [x] Gráfico(s) de barra/coluna de variáveis categóricas
 - [x] Usar cores de preenchimento para informação adicional
-- [ ] Experimentar paletas de cores
+- [x] Experimentar paletas de cores
 - [x] (Se fizer sentido) facetar gráficos de barra/coluna
 - [ ] (Se fizer sentido) usar proporções em vez de contagens
 - [ ] (Se fizer sentido) gráficos stacked
